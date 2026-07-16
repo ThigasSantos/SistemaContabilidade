@@ -2,6 +2,8 @@ import customtkinter as ctk
 from PIL import Image
 from app.utils.paths import obter_caminho_recurso
 from app.ui.main_view import MainView 
+from app.ui.historico_view import HistoricoView
+from app.ui.analitico_view import AnaliticoView
 
 class MainWindow(ctk.CTk):
     def __init__(self):
@@ -23,16 +25,16 @@ class MainWindow(ctk.CTk):
         ctk.CTkLabel(self.sidebar_frame, text="Menu", font=("Helvetica", 24, "bold")).grid(row=0, column=0, padx=20, pady=(30, 20))
 
         # Botões do Menu
-        self.btn_inicio = ctk.CTkButton(self.sidebar_frame, text="🏠 Início", command=self.mostrar_inicio)
+        self.btn_inicio = ctk.CTkButton(self.sidebar_frame, text="Início", command=self.mostrar_inicio)
         self.btn_inicio.grid(row=1, column=0, padx=20, pady=10)
 
-        self.btn_novo = ctk.CTkButton(self.sidebar_frame, text="➕ Adicionar Novo", command=self.mostrar_novo)
+        self.btn_novo = ctk.CTkButton(self.sidebar_frame, text="Adicionar Novo", command=self.mostrar_novo)
         self.btn_novo.grid(row=2, column=0, padx=20, pady=10)
 
-        self.btn_historico = ctk.CTkButton(self.sidebar_frame, text="📜 Histórico", command=self.mostrar_historico)
+        self.btn_historico = ctk.CTkButton(self.sidebar_frame, text="Histórico", command=self.mostrar_historico)
         self.btn_historico.grid(row=3, column=0, padx=20, pady=10)
 
-        self.btn_analise = ctk.CTkButton(self.sidebar_frame, text="📊 Visão Analítica", command=self.mostrar_analise)
+        self.btn_analise = ctk.CTkButton(self.sidebar_frame, text="Visão Analítica", command=self.mostrar_analise)
         self.btn_analise.grid(row=4, column=0, padx=20, pady=10)
 
         # ================= ÁREA DE CONTEÚDO (DIREITA) =================
@@ -44,8 +46,11 @@ class MainWindow(ctk.CTk):
         # Carregando as Telas
         self.tela_inicio = self._criar_tela_inicio()
         self.tela_novo = MainView(self.content_frame) # Aqui ele "puxa" a sua tela de formulário!
-        self.tela_historico = self._criar_tela_temporaria("Histórico de Precificações (Em Breve)")
-        self.tela_analise = self._criar_tela_temporaria("Dashboard Analítico DW (Em Breve)")
+        
+        # --- AJUSTE: Passamos a função iniciar_edicao para o HistoricoView ---
+        self.tela_historico = HistoricoView(self.content_frame, comando_editar=self.iniciar_edicao)
+        
+        self.tela_analise = AnaliticoView(self.content_frame)
 
         # Inicia mostrando a tela de Bem Vindo
         self.mostrar_inicio()
@@ -66,11 +71,22 @@ class MainWindow(ctk.CTk):
 
     def mostrar_historico(self):
         self._limpar_conteudo()
-        self.tela_historico.grid(row=0, column=0, sticky="nsew")
+        self.tela_historico.carregar_dados() # Busca dados fresquinhos no banco
+        self.tela_historico.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
 
     def mostrar_analise(self):
-        self._limpar_conteudo()
-        self.tela_analise.grid(row=0, column=0, sticky="nsew")
+     self._limpar_conteudo()
+     self.tela_analise.carregar_metricas_tela() 
+     self.tela_analise.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+
+    # --- NOVA FUNÇÃO DE EDIÇÃO ---
+    def iniciar_edicao(self, id_registro):
+        """É chamada quando o usuário clica no ✏️ da tela de Histórico."""
+        # 1. Pede para a tela MainView carregar os dados desse ID específico
+        self.tela_novo.carregar_para_edicao(id_registro)
+        
+        # 2. Muda a visão para a tela de formulário
+        self.mostrar_novo()
 
     # --- Criação das Telas Extras ---
     def _criar_tela_inicio(self):

@@ -1,22 +1,21 @@
 import customtkinter as ctk
-from app.services.calculo_service import CalculoService
+from CTkMessagebox import CTkMessagebox
 from app.controllers.precificacao_controller import PrecificacaoController
-from app.database.conexao import obter_sessao
 
 class MainView(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, corner_radius=10)
+        super().__init__(master, corner_radius=0, fg_color="transparent")
         
-        # Configuração do Grid Principal (2 colunas: Formulário | Resultados)
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        # Variáveis de Estado
+        self.itens_carrinho = []
+        self.id_edicao = None 
+        
+        self.titulo = ctk.CTkLabel(self, text="Calculadora de Precificação", font=ctk.CTkFont(size=24, weight="bold"))
+        self.titulo.pack(pady=(10, 20), anchor="w", padx=20)
 
-        # ================= ESQUERDA: FORMULÁRIO =================
-        self.frame_form = ctk.CTkFrame(self, fg_color="transparent")
-        self.frame_form.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
-        
-        ctk.CTkLabel(self.frame_form, text="Entrada de Dados", font=("Helvetica", 20, "bold")).pack(pady=(0, 20))
+        # ==================== ADIÇÃO DE ITENS (Formulário Horizontal) ====================
+        self.add_frame = ctk.CTkFrame(self)
+        self.add_frame.pack(fill="x", padx=20, pady=5)
 
         # Variáveis
         self.var_material = ctk.StringVar()
@@ -25,64 +24,79 @@ class MainView(ctk.CTkFrame):
         self.var_metros = ctk.StringVar()
         self.var_margem = ctk.StringVar()
 
-        # Campos
-        self._criar_campo(self.frame_form, "Nome do Material", self.var_material)
-        self._criar_campo(self.frame_form, "Preço do KG (R$)", self.var_preco_kg)
-        self._criar_campo(self.frame_form, "Peso por Metro (KG)", self.var_peso_metro)
-        self._criar_campo(self.frame_form, "Metros Utilizados", self.var_metros)
-        self._criar_campo(self.frame_form, "Margem de Lucro (%)", self.var_margem)
+        # Coluna 0: Material
+        self.lbl_material = ctk.CTkLabel(self.add_frame, text="Nome do Material:")
+        self.lbl_material.grid(row=0, column=0, padx=5, pady=(5, 0), sticky="w")
+        self.entry_material = ctk.CTkEntry(self.add_frame, width=180, textvariable=self.var_material)
+        self.entry_material.grid(row=1, column=0, padx=5, pady=(0, 10))
 
-        # Botão de Calcular (Simulação)
-        self.btn_calcular = ctk.CTkButton(self.frame_form, text="Calcular Custos", command=self.atualizar_resultados)
-        self.btn_calcular.pack(pady=20, fill="x")
+        # Coluna 1: Preço KG
+        self.lbl_preco = ctk.CTkLabel(self.add_frame, text="Preço/Kg (R$):")
+        self.lbl_preco.grid(row=0, column=1, padx=5, pady=(5, 0), sticky="w")
+        self.entry_preco = ctk.CTkEntry(self.add_frame, width=90, textvariable=self.var_preco_kg)
+        self.entry_preco.grid(row=1, column=1, padx=5, pady=(0, 10))
 
-        # ================= DIREITA: RESULTADOS =================
-        self.frame_resultados = ctk.CTkFrame(self, fg_color="#1E293B", corner_radius=15) # Cor de fundo levemente destacada
-        self.frame_resultados.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
-        
-        ctk.CTkLabel(self.frame_resultados, text="Análise de Precificação", font=("Helvetica", 20, "bold"), text_color="white").pack(pady=(20, 30))
+        # Coluna 2: Peso Metro
+        self.lbl_peso = ctk.CTkLabel(self.add_frame, text="Peso/Metro (Kg):")
+        self.lbl_peso.grid(row=0, column=2, padx=5, pady=(5, 0), sticky="w")
+        self.entry_peso = ctk.CTkEntry(self.add_frame, width=100, textvariable=self.var_peso_metro)
+        self.entry_peso.grid(row=1, column=2, padx=5, pady=(0, 10))
 
-        # Labels de Saída
-        self.lbl_despesa = ctk.CTkLabel(self.frame_resultados, text="Despesa de Material: R$ 0,00", font=("Helvetica", 16))
-        self.lbl_despesa.pack(pady=10)
+        # Coluna 3: Metros
+        self.lbl_metros = ctk.CTkLabel(self.add_frame, text="Metros:")
+        self.lbl_metros.grid(row=0, column=3, padx=5, pady=(5, 0), sticky="w")
+        self.entry_metros = ctk.CTkEntry(self.add_frame, width=80, textvariable=self.var_metros)
+        self.entry_metros.grid(row=1, column=3, padx=5, pady=(0, 10))
 
-        self.lbl_lucro = ctk.CTkLabel(self.frame_resultados, text="Lucro Estimado: R$ 0,00", font=("Helvetica", 16), text_color="#10B981") # Verde
-        self.lbl_lucro.pack(pady=10)
+        # Coluna 4: Margem
+        self.lbl_margem = ctk.CTkLabel(self.add_frame, text="Lucro (%):")
+        self.lbl_margem.grid(row=0, column=4, padx=5, pady=(5, 0), sticky="w")
+        self.entry_margem = ctk.CTkEntry(self.add_frame, width=80, textvariable=self.var_margem)
+        self.entry_margem.grid(row=1, column=4, padx=5, pady=(0, 10))
 
-        self.lbl_final = ctk.CTkLabel(self.frame_resultados, text="Preço Final Sugerido: R$ 0,00", font=("Helvetica", 22, "bold"))
-        self.lbl_final.pack(pady=30)
+        # Coluna 5: Botões de Ação
+        self.btn_add_item = ctk.CTkButton(self.add_frame, text="Adicionar", width=100, command=self.processar_item)
+        self.btn_add_item.grid(row=1, column=5, padx=15, pady=(0, 10))
 
-        # Dicionário temporário para segurar os dados antes de salvar
-        self.dados_simulados = None
+        self.btn_cancelar = ctk.CTkButton(self.add_frame, text="Cancelar", width=80, fg_color="gray", hover_color="#4b4b4b", command=self.cancelar_edicao)
+        self.btn_cancelar.grid(row=1, column=6, padx=5, pady=(0, 10))
+        self.btn_cancelar.grid_remove() # Inicia escondido (só aparece na edição)
 
-        # Botão de Salvar no Banco
-        self.btn_salvar = ctk.CTkButton(self.frame_resultados, text="Salvar no Sistema", command=self.salvar_dados, fg_color="#2563EB", state="disabled")
-        self.btn_salvar.pack(pady=20, fill="x", padx=40)
+        # ==================== RODAPÉ (Totais e Salvar) ====================
+        self.footer_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.footer_frame.pack(side="bottom", fill="x", padx=20, pady=10)
 
-    def _criar_campo(self, parent, label_text, var_control):
-        ctk.CTkLabel(parent, text=label_text).pack(anchor="w", padx=10)
-        entry = ctk.CTkEntry(parent, textvariable=var_control, width=300)
-        entry.pack(pady=(0, 10), padx=10)
+        self.lbl_total = ctk.CTkLabel(self.footer_frame, text="Mat: R$ 0,00   |   Lucro: R$ 0,00   |   Total Geral: R$ 0,00", font=ctk.CTkFont(size=18, weight="bold"), text_color="#10B981")
+        self.lbl_total.pack(side="left", anchor="w")
 
-    def atualizar_resultados(self):
-        """Coleta os dados da tela e pede pro Controller calcular."""
+        self.btn_salvar = ctk.CTkButton(self.footer_frame, text="Salvar Todos no Banco", fg_color="#2563EB", hover_color="#1d4ed8", font=ctk.CTkFont(weight="bold"), command=self.salvar_dados)
+        self.btn_salvar.pack(side="right", anchor="e")
+
+        # ==================== LISTA DE ITENS (CARRINHO) ====================
+        self.carrinho_frame = ctk.CTkScrollableFrame(self, label_text="Simulações Pendentes")
+        self.carrinho_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+    # ==================== REGRAS E FUNÇÕES ====================
+
+    def processar_item(self):
+        """Coleta, faz a matemática e decide se vai pra lista ou se atualiza o banco (edição)."""
         try:
-            nome = self.var_material.get()
+            nome = self.var_material.get().strip()
+            if not nome:
+                raise ValueError("O nome do material é obrigatório.")
+                
             preco_kg = float(self.var_preco_kg.get().replace(',', '.'))
             peso_metro = float(self.var_peso_metro.get().replace(',', '.'))
             metros = float(self.var_metros.get().replace(',', '.'))
             margem = float(self.var_margem.get().replace(',', '.'))
+            
+            if preco_kg < 0 or peso_metro <= 0 or metros <= 0 or margem < 0:
+                raise ValueError("Valores não podem ser negativos ou zerados.")
 
-            # Chama o Controller em vez do Service diretamente
+            # Chama o Controller para fazer as contas
             resultados = PrecificacaoController.simular_calculo(preco_kg, peso_metro, metros, margem)
 
-            # Atualiza os textos na tela
-            self.lbl_despesa.configure(text=f"Despesa de Material: R$ {resultados['despesa_material']:.2f}".replace('.', ','))
-            self.lbl_lucro.configure(text=f"Lucro Estimado: R$ {resultados['valor_lucro']:.2f}".replace('.', ','))
-            self.lbl_final.configure(text=f"Preço Final Sugerido: R$ {resultados['preco_final']:.2f}".replace('.', ','))
-
-            # Prepara o pacote para salvamento
-            self.dados_simulados = {
+            dados_empacotados = {
                 "nome_material": nome,
                 "preco_kg": preco_kg,
                 "peso_por_metro": peso_metro,
@@ -93,21 +107,117 @@ class MainView(ctk.CTkFrame):
                 "preco_final": resultados["preco_final"]
             }
 
-            self.btn_salvar.configure(state="normal")
+            if self.id_edicao:
+                # MODO EDIÇÃO: Atualiza direto no banco
+                PrecificacaoController.atualizar_precificacao(self.id_edicao, dados_empacotados)
+                CTkMessagebox(title="Sucesso", message="Registro atualizado com sucesso no banco!", icon="check")
+                self.cancelar_edicao()
+            else:
+                # MODO NOVO: Joga pra lista (carrinho)
+                self.itens_carrinho.append(dados_empacotados)
+                self.atualizar_interface_carrinho()
+                self._limpar_campos()
 
-        except ValueError:
-            self.lbl_final.configure(text="Erro: Verifique se os valores são números válidos.")
+        except ValueError as e:
+            msg = str(e) if "obrigatório" in str(e) else "Verifique se os valores digitados são números válidos."
+            CTkMessagebox(title="Erro de Preenchimento", message=msg, icon="warning")
+
+    def atualizar_interface_carrinho(self):
+        """Redesenha a lista de itens e atualiza os totais no rodapé."""
+        for widget in self.carrinho_frame.winfo_children():
+            widget.destroy()
+
+        total_despesa = 0.0
+        total_lucro = 0.0
+        total_final = 0.0
+
+        for index, item in enumerate(self.itens_carrinho):
+            linha = ctk.CTkFrame(self.carrinho_frame)
+            linha.pack(fill="x", pady=2)
+            
+            # Texto descritivo do item
+            texto = (f"{item['metros_utilizados']}m de {item['nome_material']} | "
+                     f"Custo: R$ {item['despesa_material']:.2f} | "
+                     f"Lucro ({item['margem_lucro']}%): R$ {item['valor_lucro']:.2f} | "
+                     f"Preço Sugerido: R$ {item['preco_final']:.2f}").replace(".", ",")
+            
+            ctk.CTkLabel(linha, text=texto, font=("Helvetica", 14)).pack(side="left", padx=10, pady=5)
+            
+            # Botão de remover
+            ctk.CTkButton(linha, text="X", width=30, fg_color="#ef4444", hover_color="#b91c1c", 
+                          command=lambda i=index: self.remover_item(i)).pack(side="right", padx=10, pady=5)
+
+            total_despesa += item['despesa_material']
+            total_lucro += item['valor_lucro']
+            total_final += item['preco_final']
+
+        # Atualiza a Label do Rodapé
+        texto_rodape = f"Mat: R$ {total_despesa:.2f}   |   Lucro: R$ {total_lucro:.2f}   |   Total Geral: R$ {total_final:.2f}".replace(".", ",")
+        self.lbl_total.configure(text=texto_rodape)
+        
+        # Habilita ou desabilita o botão de salvar conforme a lista
+        if self.itens_carrinho:
+            self.btn_salvar.configure(state="normal")
+        else:
+            self.btn_salvar.configure(state="disabled")
+
+    def remover_item(self, index):
+        self.itens_carrinho.pop(index)
+        self.atualizar_interface_carrinho()
 
     def salvar_dados(self):
-        """Pede pro Controller salvar o pacote no banco."""
-        if self.dados_simulados:
-            try:
-                # O Controller faz todo o trabalho sujo de abrir e fechar sessões
-                PrecificacaoController.salvar_precificacao(self.dados_simulados)
+        """Salva todos os itens da lista no banco de dados de produção."""
+        if not self.itens_carrinho:
+            return
 
-                # Feedback visual de sucesso e trava o botão novamente
-                self.lbl_final.configure(text="✔️ Salvo com Sucesso!")
-                self.btn_salvar.configure(state="disabled")
-                
-            except Exception as e:
-                self.lbl_final.configure(text=f"Erro ao salvar: {e}")
+        try:
+            # Salva um por um (cada um vira uma linha na tabela)
+            for item in self.itens_carrinho:
+                PrecificacaoController.salvar_precificacao(item)
+
+            CTkMessagebox(title="Sucesso", message="Cálculos salvos no banco de dados!", icon="check")
+            
+            self.itens_carrinho.clear()
+            self.atualizar_interface_carrinho()
+            
+        except Exception as e:
+            CTkMessagebox(title="Erro", message=f"Erro ao salvar: {e}", icon="cancel")
+
+    # ==================== CONTROLES DE EDIÇÃO E LIMPEZA ====================
+
+    def carregar_para_edicao(self, id_registro):
+        """Recebe o ID do histórico, trava a tela em modo de atualização."""
+        registro = PrecificacaoController.buscar_por_id(id_registro)
+        if registro:
+            self.id_edicao = registro.id
+            
+            # Preenche os campos
+            self.var_material.set(registro.nome_material)
+            self.var_preco_kg.set(str(registro.preco_kg).replace('.', ','))
+            self.var_peso_metro.set(str(registro.peso_por_metro).replace('.', ','))
+            self.var_metros.set(str(registro.metros_utilizados).replace('.', ','))
+            self.var_margem.set(str(registro.margem_lucro).replace('.', ','))
+            
+            # Transforma a interface para "Modo Edição"
+            self.btn_add_item.configure(text="Atualizar", fg_color="#F59E0B", hover_color="#D97706")
+            self.btn_cancelar.grid() 
+            self.btn_salvar.configure(state="disabled")
+            self.carrinho_frame.configure(label_text="Editando Registro Antigo...")
+
+    def cancelar_edicao(self):
+        """Sai do modo de edição e limpa os campos."""
+        self.id_edicao = None
+        self._limpar_campos()
+        
+        # Volta a interface ao normal
+        self.btn_add_item.configure(text="Adicionar", fg_color=["#3a7ebf", "#1f538d"], hover_color=["#325882", "#14375e"])
+        self.btn_cancelar.grid_remove()
+        self.carrinho_frame.configure(label_text="Simulações Pendentes")
+        self.atualizar_interface_carrinho() # Restaura o botão de salvar conforme o carrinho
+
+    def _limpar_campos(self):
+        self.var_material.set("")
+        self.var_preco_kg.set("")
+        self.var_peso_metro.set("")
+        self.var_metros.set("")
+        self.var_margem.set("")

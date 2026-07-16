@@ -27,3 +27,60 @@ class PrecificacaoController:
         finally:
             # Fecha a conexão garantindo que o arquivo .db não fique travado no Windows
             sessao.close()
+
+    @staticmethod
+    def listar_historico():
+        """Busca todos os cálculos salvos no banco, do mais novo para o mais velho."""
+        sessao = next(obter_sessao())
+        try:
+            from app.models.precificacao import Precificacao
+            # Faz um SELECT * na tabela ordenando pela data decrescente
+            registros = sessao.query(Precificacao).order_by(Precificacao.data_registro.desc()).all()
+            return registros
+        finally:
+            sessao.close()
+
+    @staticmethod
+    def buscar_por_id(id_registro):
+        """Busca um registro específico no banco."""
+        sessao = next(obter_sessao())
+        try:
+            from app.models.precificacao import Precificacao
+            return sessao.query(Precificacao).filter(Precificacao.id == id_registro).first()
+        finally:
+            sessao.close()
+
+    @staticmethod
+    def atualizar_precificacao(id_registro, dados_atualizados):
+        """Atualiza um registro existente."""
+        sessao = next(obter_sessao())
+        try:
+            from app.models.precificacao import Precificacao
+            registro = sessao.query(Precificacao).filter(Precificacao.id == id_registro).first()
+            
+            if registro:
+                # Atualiza todos os campos dinamicamente
+                for chave, valor in dados_atualizados.items():
+                    setattr(registro, chave, valor)
+                sessao.commit()
+        except Exception as e:
+            sessao.rollback()
+            raise e
+        finally:
+            sessao.close()
+
+    @staticmethod
+    def excluir_precificacao(id_registro):
+        """Deleta um registro do banco."""
+        sessao = next(obter_sessao())
+        try:
+            from app.models.precificacao import Precificacao
+            registro = sessao.query(Precificacao).filter(Precificacao.id == id_registro).first()
+            if registro:
+                sessao.delete(registro)
+                sessao.commit()
+        except Exception as e:
+            sessao.rollback()
+            raise e
+        finally:
+            sessao.close()

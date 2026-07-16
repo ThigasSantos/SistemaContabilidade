@@ -3,10 +3,18 @@ from app.database.conexao import engine, Base
 from app.ui.main_window import MainWindow
 
 def inicializar_banco():
-    """Gera as tabelas no banco SQLite local."""
+    """Gera as tabelas nos bancos de Produção e no DW."""
+    # 1. Banco de Produção
+    from app.database.conexao import engine, Base
     from app.models.precificacao import Precificacao 
     Base.metadata.create_all(bind=engine)
-    print("Banco de dados inicializado com sucesso!")
+    
+    # 2. Banco do Data Warehouse (DW)
+    from app.database.dw_conexao import engine_dw, BaseDW
+    from app.models.dw_models import DimMaterial, DimTempo, FatoCusto
+    BaseDW.metadata.create_all(bind=engine_dw)
+    
+    print("Bancos de dados inicializados com sucesso!")
 
 def main():
     # 1. Cria o banco de dados
