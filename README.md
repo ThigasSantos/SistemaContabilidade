@@ -120,7 +120,7 @@ Para garantir que o sistema de relatórios não sobrecarregue a operação diár
 
 O motor de ETL (`ETLService`) faz a ponte entre esses dois bancos sob demanda.
 
-## 📦 Como Compilar para Executável (.exe)
+## Como Compilar para Executável (.exe)
 
 O sistema foi arquitetado (`paths.py`) pensando na compilação via **PyInstaller**. Para gerar o executável final:
 
