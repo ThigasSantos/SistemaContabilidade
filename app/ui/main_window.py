@@ -1,114 +1,143 @@
 import customtkinter as ctk
-from PIL import Image
+import os
+from PIL import Image, ImageEnhance
 from app.utils.paths import obter_caminho_recurso
+from app.utils.config import NOME_EMPRESA
 from app.ui.main_view import MainView 
 from app.ui.historico_view import HistoricoView
 from app.ui.analitico_view import AnaliticoView
 
+# Configuração visual padrão do aplicativo
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
+
 class MainWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
-        
-        self.title("Simples Contabilidade - Precificação")
-        self.geometry("1100x600")
-        self.minsize(900, 500)
 
-        # Configura o layout principal (1 Linha, 2 Colunas: Menu Esquerdo | Conteúdo Direito)
+        # Configurações da Janela (Puxando o nome do arquivo .env)
+        self.title(f"{NOME_EMPRESA} - Precificação")
+        self.geometry("1280x800")
+        self.minsize(1000, 700)
+
+        # Configura o ícone da janela
+        try:
+            caminho_icone = obter_caminho_recurso("assets/icon.ico")
+            if os.path.exists(caminho_icone):
+                self.iconbitmap(caminho_icone)
+        except Exception as e:
+            print(f"Aviso: Não foi possível carregar o ícone. Detalhes: {e}")
+
+        # Configuração do Grid Principal (1 Linha, 2 Colunas)
         self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(1, weight=1) # A coluna 1 (área principal) vai expandir
 
-        # ================= MENU LATERAL (SIDEBAR) =================
+        # ==================== SIDEBAR (Menu Lateral) ====================
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(5, weight=1) # Empurra tudo pra cima
+        
+        # Empurra o rodapé para o final
+        self.sidebar_frame.grid_rowconfigure(6, weight=1) 
 
-        ctk.CTkLabel(self.sidebar_frame, text="Menu", font=("Helvetica", 24, "bold")).grid(row=0, column=0, padx=20, pady=(30, 20))
+        # Logo no Topo
+        caminho_logo = obter_caminho_recurso("assets/logo.png")
+        if os.path.exists(caminho_logo):
+            self.img_logo = ctk.CTkImage(light_image=Image.open(caminho_logo), dark_image=Image.open(caminho_logo), size=(150, 80))
+            self.lbl_logo = ctk.CTkLabel(self.sidebar_frame, text="", image=self.img_logo)
+            self.lbl_logo.grid(row=0, column=0, padx=20, pady=(20, 30))
+        else:
+            self.lbl_logo = ctk.CTkLabel(self.sidebar_frame, text="[Logo]", font=ctk.CTkFont(size=20, weight="bold"))
+            self.lbl_logo.grid(row=0, column=0, padx=20, pady=(20, 30))
 
-        # Botões do Menu
-        self.btn_inicio = ctk.CTkButton(self.sidebar_frame, text="Início", command=self.mostrar_inicio)
+        # Botões de Navegação
+        self.btn_inicio = ctk.CTkButton(self.sidebar_frame, text="🏠 Início", command=self.mostrar_inicio)
         self.btn_inicio.grid(row=1, column=0, padx=20, pady=10)
 
-        self.btn_novo = ctk.CTkButton(self.sidebar_frame, text="Adicionar Novo", command=self.mostrar_novo)
+        self.btn_novo = ctk.CTkButton(self.sidebar_frame, text="➕ Novo Cálculo", command=self.mostrar_novo)
         self.btn_novo.grid(row=2, column=0, padx=20, pady=10)
 
-        self.btn_historico = ctk.CTkButton(self.sidebar_frame, text="Histórico", command=self.mostrar_historico)
+        self.btn_historico = ctk.CTkButton(self.sidebar_frame, text="📜 Histórico", command=self.mostrar_historico)
         self.btn_historico.grid(row=3, column=0, padx=20, pady=10)
 
-        self.btn_analise = ctk.CTkButton(self.sidebar_frame, text="Visão Analítica", command=self.mostrar_analise)
-        self.btn_analise.grid(row=4, column=0, padx=20, pady=10)
+        self.btn_analitico = ctk.CTkButton(self.sidebar_frame, text="📊 Dashboard", command=self.mostrar_analise)
+        self.btn_analitico.grid(row=4, column=0, padx=20, pady=10)
 
-        # ================= ÁREA DE CONTEÚDO (DIREITA) =================
-        self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_frame.grid(row=0, column=1, sticky="nsew")
-        self.content_frame.grid_rowconfigure(0, weight=1)
-        self.content_frame.grid_columnconfigure(0, weight=1)
+        # Rodapé da Sidebar
+        self.rodape_label = ctk.CTkLabel(self.sidebar_frame, text="v1.0", text_color="gray")
+        self.rodape_label.grid(row=6, column=0, padx=20, pady=20, sticky="s")
 
-        # Carregando as Telas
-        self.tela_inicio = self._criar_tela_inicio()
-        self.tela_novo = MainView(self.content_frame) # Aqui ele "puxa" a sua tela de formulário!
-        
-        # --- AJUSTE: Passamos a função iniciar_edicao para o HistoricoView ---
-        self.tela_historico = HistoricoView(self.content_frame, comando_editar=self.iniciar_edicao)
-        
-        self.tela_analise = AnaliticoView(self.content_frame)
+        # ==================== ÁREA PRINCIPAL ====================
+        self.main_frame = ctk.CTkFrame(self, corner_radius=10)
+        self.main_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
 
-        # Inicia mostrando a tela de Bem Vindo
+        # ==================== TELAS PRÉ-CARREGADAS ====================
+        # Instanciamos as telas apenas UMA vez para não perder os dados do carrinho!
+        self.tela_novo = MainView(self.main_frame)
+        self.tela_historico = HistoricoView(self.main_frame, comando_editar=self.iniciar_edicao)
+        self.tela_analise = AnaliticoView(self.main_frame)
+
+        # Carrega e processa a Imagem de Fundo (Capa) para a Tela Início
+        caminho_capa = obter_caminho_recurso("assets/background.png")
+        if os.path.exists(caminho_capa):
+            imagem_original = Image.open(caminho_capa)
+            escurecedor = ImageEnhance.Brightness(imagem_original)
+            imagem_fosca = escurecedor.enhance(0.4) # Deixando 40% do brilho original para o tema Dark
+            
+            self.img_capa = ctk.CTkImage(light_image=imagem_fosca, dark_image=imagem_fosca, size=(100, 100))
+            self.lbl_fundo = ctk.CTkLabel(self.main_frame, text="", image=self.img_capa)
+        else:
+            self.lbl_fundo = ctk.CTkLabel(self.main_frame, text=f"Bem-vindo ao {NOME_EMPRESA}", font=ctk.CTkFont(size=26, weight="bold"))
+
+        # Inicia mostrando a tela de fundo
         self.mostrar_inicio()
 
-    # --- Funções de Navegação ---
-    def _limpar_conteudo(self):
-        """Esconde todas as telas ativas"""
-        for filho in self.content_frame.winfo_children():
-            filho.grid_forget()
+    # ==================== FUNÇÕES DE NAVEGAÇÃO ====================
+    
+    def limpar_main_frame(self):
+        """Esconde todas as telas ativas sem destruí-las, preservando os dados digitados."""
+        self.main_frame.unbind("<Configure>") # Desliga o ajustador de imagem temporariamente
+        
+        # Remove a imagem de fundo e todas as sub-telas da visualização
+        self.lbl_fundo.place_forget()
+        for widget in self.main_frame.winfo_children():
+            # Apenas esconde as telas. Não usa widget.destroy()!
+            if widget != self.lbl_fundo:
+                widget.pack_forget()
 
     def mostrar_inicio(self):
-        self._limpar_conteudo()
-        self.tela_inicio.grid(row=0, column=0, sticky="nsew")
+        self.limpar_main_frame()
+        if hasattr(self, 'img_capa'):
+            self.lbl_fundo.place(x=0, y=0, relwidth=1, relheight=1)
+            self.main_frame.bind("<Configure>", self.redimensionar_background)
+        else:
+            self.lbl_fundo.place(relx=0.5, rely=0.5, anchor="center")
 
     def mostrar_novo(self):
-        self._limpar_conteudo()
-        self.tela_novo.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        self.limpar_main_frame()
+        self.tela_novo.pack(fill="both", expand=True, padx=10, pady=10)
 
     def mostrar_historico(self):
-        self._limpar_conteudo()
+        self.limpar_main_frame()
         self.tela_historico.carregar_dados() # Busca dados fresquinhos no banco
-        self.tela_historico.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        self.tela_historico.pack(fill="both", expand=True, padx=10, pady=10)
 
     def mostrar_analise(self):
-     self._limpar_conteudo()
-     self.tela_analise.carregar_metricas_tela() 
-     self.tela_analise.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        self.limpar_main_frame()
+        self.tela_analise.carregar_metricas_tela() 
+        self.tela_analise.pack(fill="both", expand=True, padx=10, pady=10)
 
-    # --- NOVA FUNÇÃO DE EDIÇÃO ---
     def iniciar_edicao(self, id_registro):
-        """É chamada quando o usuário clica no ✏️ da tela de Histórico."""
-        # 1. Pede para a tela MainView carregar os dados desse ID específico
-        self.tela_novo.carregar_para_edicao(id_registro)
-        
-        # 2. Muda a visão para a tela de formulário
+        """Muda para a aba de cálculo e manda preencher os dados antigos."""
         self.mostrar_novo()
+        self.tela_novo.carregar_para_edicao(id_registro)
 
-    # --- Criação das Telas Extras ---
-    def _criar_tela_inicio(self):
-        """Cria a tela de Bem Vindo com a Imagem."""
-        frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        
-        try:
-            caminho_img = obter_caminho_recurso("assets/logo.png") 
-            img = Image.open(caminho_img)
-            img_ctk = ctk.CTkImage(light_image=img, dark_image=img, size=(300, 300))
-            lbl_imagem = ctk.CTkLabel(frame, image=img_ctk, text="")
-            lbl_imagem.pack(pady=(80, 20))
-        except FileNotFoundError:
-            ctk.CTkLabel(frame, text="[Coloque sua logo em assets/logo.png]", text_color="gray").pack(pady=(80, 20))
+    # ==================== RESPONSIVIDADE DE IMAGEM ====================
 
-        ctk.CTkLabel(frame, text="Bem Vindo ao Simples Contabilidade", font=("Helvetica", 28, "bold")).pack(pady=10)
-        ctk.CTkLabel(frame, text="Selecione uma opção no menu lateral para começar.", font=("Helvetica", 16), text_color="gray").pack()
-        
-        return frame
-
-    def _criar_tela_temporaria(self, texto):
-        """Cria um aviso temporário para as telas que ainda vamos programar."""
-        frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
-        ctk.CTkLabel(frame, text=texto, font=("Helvetica", 24, "bold")).pack(expand=True)
-        return frame
+    def redimensionar_background(self, event):
+        """Ajusta a imagem de fundo toda vez que a janela muda de tamanho."""
+        if hasattr(self, 'lbl_fundo') and self.lbl_fundo.winfo_exists():
+            nova_largura = event.width
+            nova_altura = event.height
+            
+            if nova_largura > 10 and nova_altura > 10:
+                self.img_capa.configure(size=(nova_largura, nova_altura))

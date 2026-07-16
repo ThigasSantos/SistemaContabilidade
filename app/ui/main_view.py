@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import re
 from CTkMessagebox import CTkMessagebox
 from app.controllers.precificacao_controller import PrecificacaoController
 
@@ -24,34 +25,38 @@ class MainView(ctk.CTkFrame):
         self.var_metros = ctk.StringVar()
         self.var_margem = ctk.StringVar()
 
-        # Coluna 0: Material
+        # --- NOVO: Comando de Validação ---
+        # Registra a função no sistema de janelas para vigiar as teclas digitadas (%P = texto que está sendo inserido)
+        validacao_float = (self.register(self.validar_entrada_float), '%P')
+
+        # Coluna 0: Material (Não usa validação porque aceita letras)
         self.lbl_material = ctk.CTkLabel(self.add_frame, text="Nome do Material:")
         self.lbl_material.grid(row=0, column=0, padx=5, pady=(5, 0), sticky="w")
         self.entry_material = ctk.CTkEntry(self.add_frame, width=180, textvariable=self.var_material)
         self.entry_material.grid(row=1, column=0, padx=5, pady=(0, 10))
 
-        # Coluna 1: Preço KG
+        # Coluna 1: Preço KG (Com Validação)
         self.lbl_preco = ctk.CTkLabel(self.add_frame, text="Preço/Kg (R$):")
         self.lbl_preco.grid(row=0, column=1, padx=5, pady=(5, 0), sticky="w")
-        self.entry_preco = ctk.CTkEntry(self.add_frame, width=90, textvariable=self.var_preco_kg)
+        self.entry_preco = ctk.CTkEntry(self.add_frame, width=90, textvariable=self.var_preco_kg, validate="key", validatecommand=validacao_float)
         self.entry_preco.grid(row=1, column=1, padx=5, pady=(0, 10))
 
-        # Coluna 2: Peso Metro
+        # Coluna 2: Peso Metro (Com Validação)
         self.lbl_peso = ctk.CTkLabel(self.add_frame, text="Peso/Metro (Kg):")
         self.lbl_peso.grid(row=0, column=2, padx=5, pady=(5, 0), sticky="w")
-        self.entry_peso = ctk.CTkEntry(self.add_frame, width=100, textvariable=self.var_peso_metro)
+        self.entry_peso = ctk.CTkEntry(self.add_frame, width=100, textvariable=self.var_peso_metro, validate="key", validatecommand=validacao_float)
         self.entry_peso.grid(row=1, column=2, padx=5, pady=(0, 10))
 
-        # Coluna 3: Metros
+        # Coluna 3: Metros (Com Validação)
         self.lbl_metros = ctk.CTkLabel(self.add_frame, text="Metros:")
         self.lbl_metros.grid(row=0, column=3, padx=5, pady=(5, 0), sticky="w")
-        self.entry_metros = ctk.CTkEntry(self.add_frame, width=80, textvariable=self.var_metros)
+        self.entry_metros = ctk.CTkEntry(self.add_frame, width=80, textvariable=self.var_metros, validate="key", validatecommand=validacao_float)
         self.entry_metros.grid(row=1, column=3, padx=5, pady=(0, 10))
 
-        # Coluna 4: Margem
+        # Coluna 4: Margem (Com Validação)
         self.lbl_margem = ctk.CTkLabel(self.add_frame, text="Lucro (%):")
         self.lbl_margem.grid(row=0, column=4, padx=5, pady=(5, 0), sticky="w")
-        self.entry_margem = ctk.CTkEntry(self.add_frame, width=80, textvariable=self.var_margem)
+        self.entry_margem = ctk.CTkEntry(self.add_frame, width=80, textvariable=self.var_margem, validate="key", validatecommand=validacao_float)
         self.entry_margem.grid(row=1, column=4, padx=5, pady=(0, 10))
 
         # Coluna 5: Botões de Ação
@@ -78,6 +83,19 @@ class MainView(ctk.CTkFrame):
 
     # ==================== REGRAS E FUNÇÕES ====================
 
+    def validar_entrada_float(self, valor_digitado):
+        """Regra do Tkinter: Permite apenas números e no máximo um separador decimal."""
+        if valor_digitado == "": # Permite apagar tudo
+            return True
+        
+        # Regex (Expressão Regular): Verifica se a string tem números, 
+        # opcionalmente seguidos de UM ponto ou UMA vírgula e mais números.
+        if re.fullmatch(r"[0-9]*[.,]?[0-9]*", valor_digitado):
+            return True
+            
+        # Se tentar digitar letras, duas vírgulas ou símbolos, a tela recusa a digitação
+        return False
+
     def processar_item(self):
         """Coleta, faz a matemática e decide se vai pra lista ou se atualiza o banco (edição)."""
         try:
@@ -85,10 +103,16 @@ class MainView(ctk.CTkFrame):
             if not nome:
                 raise ValueError("O nome do material é obrigatório.")
                 
-            preco_kg = float(self.var_preco_kg.get().replace(',', '.'))
-            peso_metro = float(self.var_peso_metro.get().replace(',', '.'))
-            metros = float(self.var_metros.get().replace(',', '.'))
-            margem = float(self.var_margem.get().replace(',', '.'))
+            # Tratamento caso o usuário clique no botão deixando os campos vazios
+            str_preco = self.var_preco_kg.get().replace(',', '.') or "0"
+            str_peso = self.var_peso_metro.get().replace(',', '.') or "0"
+            str_metros = self.var_metros.get().replace(',', '.') or "0"
+            str_margem = self.var_margem.get().replace(',', '.') or "0"
+            
+            preco_kg = float(str_preco)
+            peso_metro = float(str_peso)
+            metros = float(str_metros)
+            margem = float(str_margem)
             
             if preco_kg < 0 or peso_metro <= 0 or metros <= 0 or margem < 0:
                 raise ValueError("Valores não podem ser negativos ou zerados.")
@@ -119,7 +143,7 @@ class MainView(ctk.CTkFrame):
                 self._limpar_campos()
 
         except ValueError as e:
-            msg = str(e) if "obrigatório" in str(e) else "Verifique se os valores digitados são números válidos."
+            msg = str(e) if "obrigatório" in str(e) else "Verifique se os valores digitados são válidos."
             CTkMessagebox(title="Erro de Preenchimento", message=msg, icon="warning")
 
     def atualizar_interface_carrinho(self):
